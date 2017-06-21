@@ -1,0 +1,286 @@
+{	
+   "AWSTemplateFormatVersion": "2010-09-09",	
+	"Resources": {
+		"RushikVpc2": {
+			"Type": "AWS::EC2::VPC",
+			"Properties": {
+				"CidrBlock": "10.0.0.0/16",
+				"EnableDnsSupport": "false",
+				"EnableDnsHostnames": "false",
+				"InstanceTenancy": "default"
+			}
+		},
+		"PubSubnet1Rushik": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": { "Ref": "RushikVpc2" },
+                "AvailabilityZone": "us-east-1a",
+                "CidrBlock": "10.0.0.0/24",
+                "MapPublicIpOnLaunch": "true"
+            }
+        },
+        "PubSubnet2Rushik": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": { "Ref": "RushikVpc2" },
+                "AvailabilityZone": "us-east-1b",
+                "CidrBlock": "10.0.1.0/24",
+                "MapPublicIpOnLaunch": "true"
+            }
+        },
+        "PriSubnet1Rushik": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": { "Ref": "RushikVpc2" },
+                "AvailabilityZone": "us-east-1a",
+                "CidrBlock": "10.0.2.0/24",
+                "MapPublicIpOnLaunch": "true"
+            }
+        },
+        "PriSubnet2Rushik": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": { "Ref": "RushikVpc2" },
+                "AvailabilityZone": "us-east-1b",
+                "CidrBlock": "10.0.3.0/24",
+                "MapPublicIpOnLaunch": "true"
+            }
+        },
+        "rushikIGtask": {
+				"Type": "AWS::EC2::InternetGateway"        
+        },
+        "AttachmentGateway": {
+        		"Type": "AWS::EC2::VPCGatewayAttachment",
+				"Properties": {
+					"VpcId": { "Ref": "RushikVpc2" },
+					"InternetGatewayId": { "Ref": "rushikIGtask" } 			
+				}
+        },
+        "PublicRouteTabRushik":{
+				"Type": "AWS::EC2::RouteTable", 
+				"Properties":{
+					"VpcId": { "Ref": "RushikVpc2" }				
+				}       
+        },
+        "MyRoutePub": {
+				"Type": "AWS::EC2::Route",
+				"Properties":{			
+					"RouteTableId": { "Ref": "PublicRouteTabRushik" },
+					"DestinationCidrBlock": "0.0.0.0/0",
+					"GatewayId": { "Ref": "rushikIGtask" }	
+				} 
+        },
+        "PubRouteTableAssociation1": {
+        		"Type": "AWS::EC2::SubnetRouteTableAssociation",
+        		"Properties": {
+        			"SubnetId": { "Ref": "PubSubnet1Rushik" },
+        			"RouteTableId": { "Ref": "PublicRouteTabRushik" }
+        		}
+        },
+        "PubRouteTableAssociation2": {
+        		"Type": "AWS::EC2::SubnetRouteTableAssociation",
+        		"Properties": {
+        			"SubnetId": { "Ref": "PubSubnet2Rushik" },
+        			"RouteTableId": { "Ref": "PublicRouteTabRushik" }
+        		}
+        },
+        "NATIP":{
+        		"Type": "AWS::EC2::EIP",
+        		"Properties": { "Domain": "vpc" }
+        },
+        "NATGatewayRushik": {
+        		"DependsOn": "AttachmentGateway",
+				"Type": "AWS::EC2::NatGateway",
+				"Properties": {
+					"AllocationId": { "Fn::GetAtt" : ["NATIP", "AllocationId"] },
+					"SubnetId": { "Ref": "PubSubnet1Rushik" }				
+				}        
+        },
+        "PrivateRouteTabRushik":{
+				"Type": "AWS::EC2::RouteTable", 
+				"Properties":{
+					"VpcId": { "Ref": "RushikVpc2" }				
+				}       
+        },
+        "MyRoutePri": {
+				"Type": "AWS::EC2::Route",
+				"Properties":{			
+					"RouteTableId": { "Ref": "PrivateRouteTabRushik"},
+					"DestinationCidrBlock": "0.0.0.0/0",
+					"NatGatewayId": { "Ref": "NATGatewayRushik" }	
+				} 
+        },
+        "PriRouteTableAssociation1": {
+        		"Type": "AWS::EC2::SubnetRouteTableAssociation",
+        		"Properties": {
+        			"SubnetId": { "Ref": "PriSubnet1Rushik"},
+        			"RouteTableId": { "Ref": "PrivateRouteTabRushik" }
+        		}
+        },
+        "PriRouteTableAssociation2": {
+        		"Type": "AWS::EC2::SubnetRouteTableAssociation",
+        		"Properties": {
+        			"SubnetId": { "Ref": "PriSubnet2Rushik"},
+        			"RouteTableId": { "Ref": "PrivateRouteTabRushik" }
+        		}
+        },
+        "TaskSecurityGroup":{
+				"Type": "AWS::EC2::SecurityGroup",
+				"Properties": {
+					"GroupDescription": "Allow ssh, http, https to client host",
+					"VpcId": { "Ref": "RushikVpc2" },
+					"SecurityGroupIngress": [{
+							"IpProtocol": "tcp",
+							"FromPort": "22",
+							"ToPort": "22",
+							"CidrIp": "72.196.48.126/32"					
+					}],
+					"SecurityGroupEgress": [{
+							"IpProtocol": "-1",
+							"FromPort": "-1",
+							"ToPort": "-1",
+							"CidrIp": "0.0.0.0/0"					
+					}]				
+				}        
+        },
+        "TaskSGIngress1": {
+        		"Type": "AWS::EC2::SecurityGroupIngress",
+        		"Properties":
+        			{
+        				"GroupId": { "Ref": "TaskSecurityGroup" },
+        				"IpProtocol": "tcp",
+        				"FromPort": "80",
+        				"ToPort": "80",
+        				"CidrIp": "72.196.48.126/32"
+        			} 			
+        },
+        "TaskSGIngress2": {
+				"Type": "AWS::EC2::SecurityGroupIngress",
+				"Properties":
+					{
+        				"GroupId": { "Ref": "TaskSecurityGroup" },
+        				"IpProtocol": "tcp",
+        				"FromPort": "443",
+        				"ToPort": "443",
+        				"CidrIp": "72.196.48.126/32"
+        			}           
+        },        
+        "MyBitnamiInstance": {
+				"Type": "AWS::EC2::Instance",
+				"Properties": {
+					"AvailabilityZone": "us-east-1a",
+					"InstanceType": "t2.micro",
+					"ImageId": "ami-89f68a9f",
+					"KeyName": "rushik-keypair",
+					"NetworkInterfaces": [{
+							"AssociatePublicIpAddress": "true",
+							"DeviceIndex": "0",
+							"GroupSet": [{ "Ref": "TaskSecurityGroup" }],
+							"SubnetId": { "Ref":"PubSubnet1Rushik" }
+					}],
+					"BlockDeviceMappings": [{
+							"DeviceName": "/dev/sdm",
+							"Ebs": {
+								"VolumeType": "io1",
+								"Iops": "100",
+								"DeleteOnTermination": "false",
+								"VolumeSize": "8"							
+							}						
+					}]				
+				}        
+        },
+        "MyLAMPInstance": {
+				"Type": "AWS::EC2::Instance",
+				"Metadata": {
+					"AWS::CloudFormation::Init": {
+						"configSets": {
+							"InstallAndRun": [ "Install","Configure" ]						
+						},						
+						"Install":{
+							"packages": {
+								"yum": {
+									"mysql"			: [],
+									"mysql-server"	: [],
+									"mysql-libs"	: [],
+									"httpd"			: [],
+									"php"				: [],
+									"php-mysql"		: [],
+									"git"				: []						
+								}
+							},					
+							"files" : {
+								"/etc/cfn/cfn-hup.conf" : {
+									"content" : { "Fn::Join" : ["", [
+										"[main]\n",
+										"stack=", { "Ref" : "AWS::StackId" }, "\n",
+										"region=", { "Ref" : "AWS::Region" }, "\n",
+										"interval=5", "\n"
+									]]},
+									"mode": "000400",
+									"owner": "root",
+									"group": "root"
+								},
+								"/etc/cfn/hooks.d/cfn-auto-reloader.conf" : {
+									"content": { "Fn::Join" : ["", [
+										"[cfn-auto-reloader-hook]\n",
+										"triggers=post.update\n",
+										"path=Resources.WebServerInstance.Metadata.AWS::CloudFormation::Init\n",
+										"action=/opt/aws/bin/cfn-init -v ",
+										" --stack ", { "Ref" : "AWS::StackName" },
+										" --resource WebServerInstance ",
+										" --configsets InstallAndRun ",
+										" --region ", { "Ref" : "AWS::Region" }, "\n",
+										"runas=root\n"
+									]]}
+								}
+							},			
+							"services": {
+								"sysvinit": {
+									"mysqld": { "enabled": "true", "ensureRunning": "true" },
+									"httpd": { "enabled": "true", "ensureRunning": "true" },		
+									"cfn-hup": { "enabled": "true", "ensureRunning": "true" },
+									"files" : ["/etc/cfn/cfn-hup.conf", "/etc/cfn/hooks.d/cfn-auto-reloader.conf"]
+								}				
+							}					
+						}	
+					}
+				},	
+				"Properties": {
+					"AvailabilityZone": "us-east-1a",
+					"InstanceType": "t2.micro",
+					"ImageId": "ami-c58c1dd3",
+					"KeyName": "rushik-keypair",
+					"UserData": { "Fn::Base64" : { "Fn::Join" : ["", [
+						"#!/bin/bash -xe\n",
+						"yum update -y aws-cfn-bootstrap\n",
+						"# Install the files and packages from the metadata\n",
+						"/opt/aws/bin/cfn-init -v ",
+						"--stack ", { "Ref" : "AWS::StackName" },
+						"--resource WebServerInstance ",
+						"--configsets InstallAndRun ",
+						"--region ", { "Ref" : "AWS::Region" }, "\n",
+						"# Signal the status from cfn-init\n",
+						"/opt/aws/bin/cfn-signal -e $? ",
+						"--stack ", { "Ref" : "AWS::StackName" },
+						"--resource WebServerInstance ",
+						"--region ", { "Ref" : "AWS::Region" }, "\n"
+					]]}},
+					"NetworkInterfaces": [{
+							"AssociatePublicIpAddress": "true",
+							"DeviceIndex": "0",
+							"GroupSet": [{ "Ref": "TaskSecurityGroup" }],
+							"SubnetId": { "Ref":"PubSubnet1Rushik" }
+					}],
+					"BlockDeviceMappings": [{
+							"DeviceName": "/dev/sdm",
+							"Ebs": {
+								"VolumeType": "io1",
+								"Iops": "100",
+								"DeleteOnTermination": "false",
+								"VolumeSize": "8"							
+							 }						
+					}]				
+				}        
+        }      
+	}
+}
