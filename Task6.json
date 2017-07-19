@@ -198,7 +198,7 @@
 					"KeyName": "rushik-keypair",
 					"UserData": { "Fn::Base64" : { "Fn::Join" : ["", [
 						"#!/bin/bash\n",
-						"sudo yum update -y update\n",
+						"sudo yum -y update\n",
 						"sudo yum -y install httpd php php-mysql mariadb\n",
 						"sudo systemctl start httpd\n",
 						"sudo systemctl enable httpd\n",
